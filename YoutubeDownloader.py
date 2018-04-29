@@ -5,17 +5,17 @@ import base64
 
 
 def save_html(html):
-    with open("res.html", 'wb') as f:
-        f.write(html)
+    with open("res.html", 'w') as f:
+        f.write(str(html))
     f.close()
 
 
 def get_url_vid(name):
     search_results = requests.get(youtube_results_url, params={'search_query': name})
     html_doc = search_results.content
-    # save_html(html_doc)
     soup = bs4(html_doc, 'lxml')
     vid_id = soup.findAll("button", {"title": "Watch later"})[0].get("data-video-ids")
+    print (vid_id)
     return 'https://www.youtube.com/watch?v=' + vid_id
 
 
@@ -28,12 +28,12 @@ def download_mp3(convertor_url):
     print()
 
 
-songs_list = open('songs.txt', 'r')
+songs_list = open('songs.txt', 'r',encoding="utf8")
 youtube_results_url = "https://www.youtube.com/results"
 convertor_url = 'http://www.convertmp3.io/download/?video='
 
 songs_dict = {}
-for song in songs_list:
+for song in songs_list.read().split('\n'):
     youtube_url = get_url_vid(song.replace(" ", "+"))
     # base64_youtube_url=base64_encode_url(youtube_url).decode("utf-8")
     # songs_dict[song.strip('\n')]=[youtube_url,base64_youtube_url]
