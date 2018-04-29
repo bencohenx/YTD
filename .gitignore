@@ -101,4 +101,4 @@ ENV/
 .mypy_cache/
 
 .idea/
-.html
+*.html
