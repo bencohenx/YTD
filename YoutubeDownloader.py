@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as bs4
 import argparse
 import os.path
 import sys
+from datetime import datetime
 
 parser = argparse.ArgumentParser(description='''
 __   __             _           _                                
@@ -82,9 +83,9 @@ def save_file(name, d_url):
 
 def final(song_name, song_id_list, list_amount):
     if args.quiet:
-        print('Download: '+song_name)
+        print('Download: ' + song_name)
     else:
-        print("Start download "+str(song_id_list)+"/"+str(list_amount)+": " + song_name)
+        print(datetime.now().strftime('%H:%M:%S')+" Start download " + str(song_id_list) + "/" + str(list_amount) + ": " + song_name)
     youtube_url = get_url_vid(song_name.replace(" ", "+"))
     mp3io_to_download = get_download_url(youtube_url)
     save_file(song_name, mp3io_to_download)
@@ -103,25 +104,27 @@ if args.output_path is not None:
         pass
     else:
         os.makedirs(args.output_path)
-
-if args.song_name is not None:
-    final(args.song_name, '1', '1')
-elif args.list_path is not None:
-    if os.path.exists(args.list_path):  # works on songs list
-        with open(args.list_path, "r", encoding="utf8") as f:
-            songs_list = f.read().split('\n')
-        i = 1
-        amount = len(songs_list)
-        for song in songs_list:
-            final(song, i, amount)
-            i = i + 1
+try:
+    if args.song_name is not None:
+        final(args.song_name, '1', '1')
+    elif args.list_path is not None:
+        if os.path.exists(args.list_path):  # works on songs list
+            with open(args.list_path, "r", encoding="utf8") as f:
+                songs_list = f.read().split('\n')
+            i = 1
+            amount = len(songs_list)
+            for song in songs_list:
+                final(song, i, amount)
+                i = i + 1
+        else:
+            print('''
+                  *** Wrong path list.. ***
+                  ''')
     else:
         print('''
-              *** Wrong path list.. ***
-              ''')
-else:
-    print('''
-    *****************************************
-    ***  Bad Args, try the help, --help   ***
-    *****************************************
-    ''')
+        *****************************************
+        ***  Bad Args, try the help, --help   ***
+        *****************************************
+        ''')
+except KeyboardInterrupt:
+    print("\nStopped by user")
