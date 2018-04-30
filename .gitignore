@@ -103,3 +103,5 @@ ENV/
 .idea/
 *.html
 *.mp3
+songs.txt
+YoutubeDownloaderAudio/

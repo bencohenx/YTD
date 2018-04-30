@@ -67,7 +67,7 @@ def save_file(name, d_url):
             f.write(response.content)
         else:
             total_length = response.headers.get('content-length')
-            if total_length is None:  # no content length header
+            if total_length is None:
                 f.write(response.content)
             else:
                 dl = 0
@@ -81,13 +81,18 @@ def save_file(name, d_url):
                 print('\n')
 
 
-def final(song_name, song_id_list, list_amount):
+def merger(song_name, song_id_list, list_amount):
     if args.quiet:
         print('Download: ' + song_name)
     else:
-        print(datetime.now().strftime('%H:%M:%S')+" Start download " + str(song_id_list) + "/" + str(list_amount) + ": " + song_name)
+        print(datetime.now().strftime('%H:%M:%S')+" Start download - " + str(song_id_list) + "/" + str(list_amount)
+              + ": "+ song_name)
     youtube_url = get_url_vid(song_name.replace(" ", "+"))
+    if args.quiet is False:
+        print('getting the youtube URL: '+youtube_url)
     mp3io_to_download = get_download_url(youtube_url)
+    if args.quiet is False:
+        print('getting the youtube URL: '+mp3io_to_download)
     save_file(song_name, mp3io_to_download)
     songs_dict[song_name] = [youtube_url, mp3io_to_download]
 
@@ -106,7 +111,7 @@ if args.output_path is not None:
         os.makedirs(args.output_path)
 try:
     if args.song_name is not None:
-        final(args.song_name, '1', '1')
+        merger(args.song_name, '1', '1')
     elif args.list_path is not None:
         if os.path.exists(args.list_path):  # works on songs list
             with open(args.list_path, "r", encoding="utf8") as f:
@@ -114,8 +119,8 @@ try:
             i = 1
             amount = len(songs_list)
             for song in songs_list:
-                final(song, i, amount)
-                i = i + 1
+                merger(song, i, amount)
+                i += 1
         else:
             print('''
                   *** Wrong path list.. ***
@@ -123,7 +128,7 @@ try:
     else:
         print('''
         *****************************************
-        ***  Bad Args, try the help, --help   ***
+        ***  Bad Args, try to run --help   ***
         *****************************************
         ''')
 except KeyboardInterrupt:
