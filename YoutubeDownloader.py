@@ -41,9 +41,14 @@ v 0.1.0
 group = parser.add_mutually_exclusive_group()
 parser.add_argument('-s', "--song-name")
 parser.add_argument('-l', '--list-path')
+parser.add_argument('-p', '--playlist-url')
 parser.add_argument('-o', '--output-path', default="YoutubeDownloaderAudio")
 group.add_argument("-q", "--quiet", action="store_true")
 parser.add_argument('-w', "--worker-threads", default=3, type=int)
+
+args = parser.parse_args()
+print_queue = Queue()
+stop = False
 
 
 def save_html_youtube(html):
@@ -68,7 +73,7 @@ def get_url_vid(name):
 
 
 def get_download_url(yb_url):
-    mp3_results = requests.get(mp3io_download_url, params={'video': yb_url})
+    mp3_results = requests.get('http://www.convertmp3.io/download/', params={'video': yb_url})
     html_doc = mp3_results.content
     # save_html_mp3io(html_doc)
     soup = bs4(html_doc, 'lxml')
@@ -76,7 +81,26 @@ def get_download_url(yb_url):
     return 'http://www.convertmp3.io' + href_id
 
 
+def get_playlist_vid_url():
+    pl_dic = {}
+    list_id = args.playlist_url[38:]
+    youtube_watch = 'https://www.youtube.com/watch'
+    search_results = requests.get('https://www.youtube.com/playlist?list=' + list_id)
+    html_doc = search_results.content
+    soup = bs4(html_doc.decode('utf-8', 'ignore'), "lxml")
+    rows = soup.findAll('tr', {'class': 'pl-video yt-uix-tile '})
+    for index, row in enumerate(rows):
+        href = row.get("data-video-id")
+        name = row.get("data-title")
+        song_playlist_url = requests.get(youtube_watch,
+                                         params={'v': href, 'index': str(index + 1), 't': '0s', 'list': list_id})
+        pl_dic[name] = song_playlist_url.url
+    return pl_dic
+
+
 def save_file(song_id, name, d_url):
+    name = name.replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('"', '')\
+        .replace('<', '').replace('>', '').replace('|', '')
     with open(os.path.join(args.output_path, name) + '.mp3', 'wb') as f:
         response = requests.get(d_url, stream=True)
         if args.quiet:
@@ -94,26 +118,43 @@ def save_file(song_id, name, d_url):
                     dl += len(data)
                     f.write(data)
                     done = (dl / total_length) * 50
-                    print_queue.put((song_id * 5 + 3, "[%s%s]" % ('=' * int(done), ' ' * (50 - int(done)))))
+                    if args.playlist_url is None:
+                        print_queue.put((song_id * 5 + 3, "[%s%s]" % ('=' * int(done), ' ' * (50 - int(done)))))
+                    else:
+                        print_queue.put((song_id * 4 + 2, "[%s%s]" % ('=' * int(done), ' ' * (50 - int(done)))))
 
 
-def merger(song_id_list, song_name):
+def merger(song_id_list, song_name, vid_url=None):
     if stop:
         return
     if args.quiet:
         print('Downloading: ' + song_name)
     else:
-        print_queue.put((song_id_list * 5,
-                         datetime.now().strftime('%H:%M:%S') + " Starting download - " + str(
-                             song_id_list + 1) + "/" + str(
-                             amount)
-                         + ": " + song_name))
-    youtube_url = get_url_vid(song_name.replace(" ", "+"))
-    if args.quiet is False:
-        print_queue.put((song_id_list * 5 + 1, 'Getting the youtube URL: ' + youtube_url))
+        if vid_url is None:
+            print_queue.put((song_id_list * 5,
+                             datetime.now().strftime('%H:%M:%S') + " Starting download - " + str(
+                                 song_id_list + 1) + "/" + str(
+                                 amount)
+                             + ": " + song_name))
+        else:
+            print_queue.put((song_id_list * 4,
+                             datetime.now().strftime('%H:%M:%S') + " Starting download - " + str(
+                                 song_id_list + 1) + "/" + str(
+                                 amount)
+                             + ": " + song_name))
+
+    if vid_url is None:
+        youtube_url = get_url_vid(song_name.replace(" ", "+"))
+        if args.quiet is False:
+            print_queue.put((song_id_list * 5 + 1, 'Getting the youtube URL: ' + youtube_url))
+    else:
+        youtube_url = vid_url
     mp3io_to_download = get_download_url(youtube_url)
     if args.quiet is False:
-        print_queue.put((song_id_list * 5 + 2, 'Getting the mp3io URL: ' + mp3io_to_download))
+        if vid_url is None:
+            print_queue.put((song_id_list * 5 + 2, 'Getting the mp3io URL: ' + mp3io_to_download))
+        else:
+            print_queue.put((song_id_list * 4 + 1, 'Getting the mp3io URL: ' + mp3io_to_download))
     save_file(song_id_list, song_name, mp3io_to_download)
 
 
@@ -143,20 +184,16 @@ def stop_by_user():
     global stop
     if msvcrt.getch() == b'\x03':
         stop = True
-    print_queue.put((amount*5, "Stopped by user"))
+    print_queue.put((amount * 5, "Stopped by user"))
+    exit()
 
-
-youtube_results_url = "https://www.youtube.com/results"
-mp3io_download_url = 'http://www.convertmp3.io/download/'
-args = parser.parse_args()
-print_queue = Queue()
-amount = 1
-stop = False
 
 os.system('cls')
 os.system('mode 800')
 print("Running '{}'\n"
       "Worker threads are: {}".format(__file__, args.worker_threads))
+
+amount = 1
 
 print_thread = threading.Thread(target=printer)
 stop_thread = threading.Thread(target=stop_by_user)
@@ -170,11 +207,18 @@ if args.output_path is not None:
     else:
         os.makedirs(args.output_path)
 
-
 if args.song_name is not None:
+    youtube_results_url = "https://www.youtube.com/results"
     merger(0, args.song_name)
+elif args.playlist_url is not None:
+    playlist_dic = get_playlist_vid_url()  # works on playlist ={name:youtube_url}
+    amount = len(playlist_dic)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.worker_threads) as executor:
+        executor.map(merger, range(0, amount), playlist_dic.keys(), playlist_dic.values())
 elif args.list_path is not None:
     if os.path.exists(args.list_path):  # works on songs list
+        youtube_results_url = "https://www.youtube.com/results"
+        mp3io_download_url = 'http://www.convertmp3.io/download/'
         with open(args.list_path, "r", encoding="utf8") as f:
             songs_list = set(f.read().split('\n'))  # unique list
         amount = len(songs_list)
